@@ -24,6 +24,11 @@ template<
   * You can use sjtu::map as value_type by typedef.
     */
    typedef pair<const Key, T> value_type;
+
+  private:
+   struct Node;
+
+  public:
    /**
   * see BidirectionalIterator at CppReference for help.
   *
@@ -36,85 +41,66 @@ template<
       private:
        friend class map;
        friend class const_iterator;
-       typedef typename map::value_type* node_value_ptr;
-       node_value_ptr ptr;
+       Node* node_;
        map* owner;
       public:
-       iterator() : ptr(nullptr), owner(nullptr) {}
+       iterator() : node_(nullptr), owner(nullptr) {}
 
-       iterator(node_value_ptr p, map* o) : ptr(p), owner(o) {}
+       iterator(Node* n, map* o) : node_(n), owner(o) {}
 
-       iterator(const iterator &other) : ptr(other.ptr), owner(other.owner) {}
+       iterator(const iterator &other) : node_(other.node_), owner(other.owner) {}
 
-       /**
-    * TODO iter++
-        */
        iterator operator++(int) {
-         if (owner == nullptr || ptr == nullptr) throw invalid_iterator();
+         if (owner == nullptr || node_ == nullptr) throw invalid_iterator();
          iterator tmp = *this;
-         ptr = owner->successor(ptr);
+         node_ = owner->successor_node(node_);
          return tmp;
        }
 
-       /**
-    * TODO ++iter
-        */
        iterator &operator++() {
-         if (owner == nullptr || ptr == nullptr) throw invalid_iterator();
-         ptr = owner->successor(ptr);
+         if (owner == nullptr || node_ == nullptr) throw invalid_iterator();
+         node_ = owner->successor_node(node_);
          return *this;
        }
 
-       /**
-    * TODO iter--
-        */
        iterator operator--(int) {
          iterator tmp = *this;
          if (owner == nullptr) throw invalid_iterator();
-         if (ptr == nullptr) {
-           ptr = owner->rightmost();
-           if (ptr == nullptr) throw invalid_iterator();
+         if (node_ == nullptr) {
+           node_ = owner->maximum(owner->root);
+           if (node_ == nullptr) throw invalid_iterator();
          } else {
-           ptr = owner->predecessor(ptr);
-           if (ptr == nullptr) throw invalid_iterator();
+           node_ = owner->predecessor_node(node_);
+           if (node_ == nullptr) throw invalid_iterator();
          }
          return tmp;
        }
 
-       /**
-    * TODO --iter
-        */
        iterator &operator--() {
          if (owner == nullptr) throw invalid_iterator();
-         if (ptr == nullptr) {
-           ptr = owner->rightmost();
-           if (ptr == nullptr) throw invalid_iterator();
+         if (node_ == nullptr) {
+           node_ = owner->maximum(owner->root);
+           if (node_ == nullptr) throw invalid_iterator();
          } else {
-           ptr = owner->predecessor(ptr);
-           if (ptr == nullptr) throw invalid_iterator();
+           node_ = owner->predecessor_node(node_);
+           if (node_ == nullptr) throw invalid_iterator();
          }
          return *this;
        }
 
-       /**
-    * a operator to check whether two iterators are same (pointing to the same memory).
-        */
        value_type &operator*() const {
-         if (owner == nullptr || ptr == nullptr) throw invalid_iterator();
-         return *ptr;
+         if (owner == nullptr || node_ == nullptr) throw invalid_iterator();
+         return *node_->data();
        }
 
        bool operator==(const iterator &rhs) const {
-         return owner == rhs.owner && ptr == rhs.ptr;
+         return owner == rhs.owner && node_ == rhs.node_;
        }
 
        bool operator==(const const_iterator &rhs) const {
-         return owner == rhs.owner && ptr == rhs.ptr;
+         return owner == rhs.owner && node_ == rhs.node_;
        }
 
-       /**
-    * some other operator for iterator.
-        */
        bool operator!=(const iterator &rhs) const {
          return !(*this == rhs);
        }
@@ -123,79 +109,74 @@ template<
          return !(*this == rhs);
        }
 
-       /**
-    * for the support of it->first.
-    * See <http://kelvinh.github.io/blog/2013/11/20/overloading-of-member-access-operator-dash-greater-than-symbol-in-cpp/> for help.
-        */
        value_type *operator->() const noexcept {
-         return ptr;
+         return node_ != nullptr ? node_->data() : nullptr;
        }
    };
    class const_iterator {
       private:
        friend class map;
        friend class iterator;
-       typedef const typename map::value_type* node_value_ptr;
-       node_value_ptr ptr;
+       const Node* node_;
        const map* owner;
       public:
-       const_iterator() : ptr(nullptr), owner(nullptr) {}
+       const_iterator() : node_(nullptr), owner(nullptr) {}
 
-       const_iterator(node_value_ptr p, const map* o) : ptr(p), owner(o) {}
+       const_iterator(const Node* n, const map* o) : node_(n), owner(o) {}
 
-       const_iterator(const const_iterator &other) : ptr(other.ptr), owner(other.owner) {}
+       const_iterator(const const_iterator &other) : node_(other.node_), owner(other.owner) {}
 
-       const_iterator(const iterator &other) : ptr(other.ptr), owner(other.owner) {}
+       const_iterator(const iterator &other) : node_(other.node_), owner(other.owner) {}
 
        const_iterator operator++(int) {
-         if (owner == nullptr || ptr == nullptr) throw invalid_iterator();
+         if (owner == nullptr || node_ == nullptr) throw invalid_iterator();
          const_iterator tmp = *this;
-         ptr = owner->successor(ptr);
+         node_ = owner->successor_node(node_);
          return tmp;
        }
 
        const_iterator &operator++() {
-         if (owner == nullptr || ptr == nullptr) throw invalid_iterator();
-         ptr = owner->successor(ptr);
+         if (owner == nullptr || node_ == nullptr) throw invalid_iterator();
+         node_ = owner->successor_node(node_);
          return *this;
        }
 
        const_iterator operator--(int) {
          const_iterator tmp = *this;
          if (owner == nullptr) throw invalid_iterator();
-         if (ptr == nullptr) {
-           ptr = owner->rightmost();
-           if (ptr == nullptr) throw invalid_iterator();
+         if (node_ == nullptr) {
+           node_ = owner->maximum(owner->root);
+           if (node_ == nullptr) throw invalid_iterator();
          } else {
-           ptr = owner->predecessor(ptr);
-           if (ptr == nullptr) throw invalid_iterator();
+           node_ = owner->predecessor_node(node_);
+           if (node_ == nullptr) throw invalid_iterator();
          }
          return tmp;
        }
 
        const_iterator &operator--() {
          if (owner == nullptr) throw invalid_iterator();
-         if (ptr == nullptr) {
-           ptr = owner->rightmost();
-           if (ptr == nullptr) throw invalid_iterator();
+         if (node_ == nullptr) {
+           node_ = owner->maximum(owner->root);
+           if (node_ == nullptr) throw invalid_iterator();
          } else {
-           ptr = owner->predecessor(ptr);
-           if (ptr == nullptr) throw invalid_iterator();
+           node_ = owner->predecessor_node(node_);
+           if (node_ == nullptr) throw invalid_iterator();
          }
          return *this;
        }
 
        const value_type &operator*() const {
-         if (owner == nullptr || ptr == nullptr) throw invalid_iterator();
-         return *ptr;
+         if (owner == nullptr || node_ == nullptr) throw invalid_iterator();
+         return *node_->data();
        }
 
        bool operator==(const iterator &rhs) const {
-         return owner == rhs.owner && ptr == rhs.ptr;
+         return owner == rhs.owner && node_ == rhs.node_;
        }
 
        bool operator==(const const_iterator &rhs) const {
-         return owner == rhs.owner && ptr == rhs.ptr;
+         return owner == rhs.owner && node_ == rhs.node_;
        }
 
        bool operator!=(const iterator &rhs) const {
@@ -207,7 +188,7 @@ template<
        }
 
        const value_type *operator->() const noexcept {
-         return ptr;
+         return node_ != nullptr ? node_->data() : nullptr;
        }
    };
 
@@ -417,84 +398,48 @@ template<
      return node;
    }
 
-   value_type* successor(value_type* v) const {
-     Node* node = node_from_value(v);
+   Node* successor_node(Node* node) const {
      if (node == nullptr) return nullptr;
-     if (node->right != nullptr) return minimum(node->right)->data();
+     if (node->right != nullptr) return minimum(node->right);
      Node* p = node->parent;
      while (p != nullptr && node == p->right) {
        node = p;
        p = p->parent;
      }
-     return p != nullptr ? p->data() : nullptr;
+     return p;
    }
 
-   const value_type* successor(const value_type* v) const {
-     Node* node = node_from_value(v);
+   const Node* successor_node(const Node* node) const {
      if (node == nullptr) return nullptr;
-     if (node->right != nullptr) return minimum(node->right)->data();
-     Node* p = node->parent;
+     if (node->right != nullptr) return minimum(node->right);
+     const Node* p = node->parent;
      while (p != nullptr && node == p->right) {
        node = p;
        p = p->parent;
      }
-     return p != nullptr ? p->data() : nullptr;
+     return p;
    }
 
-   value_type* predecessor(value_type* v) const {
-     Node* node = node_from_value(v);
+   Node* predecessor_node(Node* node) const {
      if (node == nullptr) return nullptr;
-     if (node->left != nullptr) return maximum(node->left)->data();
+     if (node->left != nullptr) return maximum(node->left);
      Node* p = node->parent;
      while (p != nullptr && node == p->left) {
        node = p;
        p = p->parent;
      }
-     return p != nullptr ? p->data() : nullptr;
+     return p;
    }
 
-   const value_type* predecessor(const value_type* v) const {
-     Node* node = node_from_value(v);
+   const Node* predecessor_node(const Node* node) const {
      if (node == nullptr) return nullptr;
-     if (node->left != nullptr) return maximum(node->left)->data();
-     Node* p = node->parent;
+     if (node->left != nullptr) return maximum(node->left);
+     const Node* p = node->parent;
      while (p != nullptr && node == p->left) {
        node = p;
        p = p->parent;
      }
-     return p != nullptr ? p->data() : nullptr;
-   }
-
-   value_type* rightmost() {
-     if (root == nullptr) return nullptr;
-     return maximum(root)->data();
-   }
-
-   const value_type* rightmost() const {
-     if (root == nullptr) return nullptr;
-     return maximum(root)->data();
-   }
-
-   Node* node_from_value(value_type* v) const {
-     if (root == nullptr || v == nullptr) return nullptr;
-     Node* node = root;
-     while (node != nullptr) {
-       if (node->data() == v) return node;
-       if (comp(v->first, node->data()->first)) node = node->left;
-       else node = node->right;
-     }
-     return nullptr;
-   }
-
-   Node* node_from_value(const value_type* v) const {
-     if (root == nullptr || v == nullptr) return nullptr;
-     Node* node = root;
-     while (node != nullptr) {
-       if (node->data() == v) return node;
-       if (comp(v->first, node->data()->first)) node = node->left;
-       else node = node->right;
-     }
-     return nullptr;
+     return p;
    }
 
   public:
@@ -558,7 +503,7 @@ template<
      if (node != nullptr) return node->data()->second;
      value_type val(key, T());
      auto pr = insert(val);
-     return pr.first.ptr->second;
+     return pr.first.node_->data()->second;
    }
 
    /**
@@ -573,12 +518,12 @@ template<
     */
    iterator begin() {
      if (root == nullptr) return iterator(nullptr, this);
-     return iterator(minimum(root)->data(), this);
+     return iterator(minimum(root), this);
    }
 
    const_iterator cbegin() const {
      if (root == nullptr) return const_iterator(nullptr, this);
-     return const_iterator(minimum(root)->data(), this);
+     return const_iterator(minimum(root), this);
    }
 
    /**
@@ -617,7 +562,7 @@ template<
     */
    pair<iterator, bool> insert(const value_type &value) {
      Node* exist = find_node(root, value.first);
-     if (exist != nullptr) return pair<iterator, bool>(iterator(exist->data(), this), false);
+     if (exist != nullptr) return pair<iterator, bool>(iterator(exist, this), false);
 
      Node* z = new Node();
      new (z->storage) value_type(value);
@@ -635,7 +580,7 @@ template<
      else y->right = z;
      insert_fixup(z);
      size_++;
-     return pair<iterator, bool>(iterator(z->data(), this), true);
+     return pair<iterator, bool>(iterator(z, this), true);
    }
 
    /**
@@ -644,9 +589,8 @@ template<
   * throw if pos pointed to a bad element (pos == this->end() || pos points an element out of this)
     */
    void erase(iterator pos) {
-     if (pos.owner != this || pos.ptr == nullptr) throw invalid_iterator();
-     Node* z = node_from_value(pos.ptr);
-     if (z == nullptr) throw invalid_iterator();
+     if (pos.owner != this || pos.node_ == nullptr) throw invalid_iterator();
+     Node* z = pos.node_;
 
      Node* y = z;
      Node* x = nullptr;
@@ -706,13 +650,13 @@ template<
    iterator find(const Key &key) {
      Node* node = find_node(root, key);
      if (node == nullptr) return end();
-     return iterator(node->data(), this);
+     return iterator(node, this);
    }
 
    const_iterator find(const Key &key) const {
      Node* node = find_node(root, key);
      if (node == nullptr) return cend();
-     return const_iterator(node->data(), this);
+     return const_iterator(node, this);
    }
 };
 
